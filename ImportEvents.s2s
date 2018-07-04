@@ -1,0 +1,36 @@
+'Original script adapted by schweimer from script by Pawel Kusmierek
+'Edited by rciszek for importing and displaying events stored in tab delimited format.
+'The script can be used e.g. to import positions of seizures detected by algorithms
+'not implemented as Spike scripts.
+var vh%,CreCh%, importtext%, success%,targethandle%;
+
+var hour, minute, second, duration,timeInSeconds; 'Event annotations are presented in four column tab delimited text file
+targethandle% := view(vh%);
+CreCh% := MemChan(8,32); 'Create TextMarker channel
+importtext% := FileOpen( "*.txt", 8);
+
+repeat  'Read() only reads one line of the text file (one event time), so we need a loop to read all event times one by one   
+   
+    success% := View(importtext%).Read(hour, minute, second, duration); 'here we read one line of the text file (the one whose handle is in sourcehandle% variable)
+    'if everything is OK, Read() will put 1 into success%, indicating that one number was read.
+    'if there is an error, a negative error code will be placed in success, we will now use it to detect if we reached the end of file because we read all event times   
+    
+    if success% < 0 then  'end of file error has number -1530, but we just check for any value less that zero, so in case of any error...
+        break;    '... we exit the loopa
+    endif
+    
+    timeInSeconds := hour*60*60 + minute*60 + second;
+    View(targethandle%).MemSetItem(CreCh%, 0, timeInSeconds, 01); 'Beginning of an event 
+    View(targethandle%).MemSetItem(CreCh%, 0, timeInSeconds+duration,00); 'End of an event
+
+until 0;  'end of the loop; using 0 (here interpreted as "false") as exit condition causes that the loop to never end. So the only way out is through the break instruction above.
+
+'Display the beginning and end of an event as continuous lines
+FrontView(targethandle%);
+DrawMode(CreCh%,15,1, 0,0); 
+MarkShow(CreCh%, 0, 0);
+
+View(importtext%);
+FileClose();
+
+ChanShow (CreCh%); 'and this one, showing the memory channel
